@@ -20,7 +20,7 @@ import { CustomizeLayoutModal } from './components/CustomizeLayoutModal';
 import { BulkImportModal } from './components/BulkImportModal';
 import { EditItemModal } from './components/EditItemModal';
 import { triggerHaptic } from './utils/haptics';
-import { Info, Sparkles, MapPin, Footprints, ShieldCheck, ShoppingCart, ChevronUp, ChevronDown } from 'lucide-react';
+import { Play, ShieldCheck, MapPin } from 'lucide-react';
 
 export default function App() {
   const [layout, setLayout] = useState<StoreLayout>(() => loadStoreLayout());
@@ -30,26 +30,16 @@ export default function App() {
   const [isBulkImportOpen, setIsBulkImportOpen] = useState<boolean>(false);
   const [editingItem, setEditingItem] = useState<ShoppingItem | null>(null);
 
-  // Stato per nascondere/ridurre il box introduttivo per avere più spazio nella lista
-  const [showIntroBanner, setShowIntroBanner] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('esselunga_show_intro');
-      return saved !== null ? JSON.parse(saved) : true;
-    } catch {
-      return true;
-    }
-  });
-
-  // Stato per nascondere la barra mobile inferiore durante lo scroll verso il basso
+  // Auto-hide floating mobile action bar on downward scroll
   const [isScrollingDown, setIsScrollingDown] = useState(false);
 
   useEffect(() => {
     let lastY = window.scrollY;
     const onScroll = () => {
       const currentY = window.scrollY;
-      if (currentY > lastY && currentY > 100) {
+      if (currentY > lastY && currentY > 60) {
         setIsScrollingDown(true);
-      } else if (currentY < lastY - 6) {
+      } else if (currentY < lastY - 8) {
         setIsScrollingDown(false);
       }
       lastY = currentY;
@@ -58,22 +48,12 @@ export default function App() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const handleToggleIntroBanner = () => {
-    setShowIntroBanner((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem('esselunga_show_intro', JSON.stringify(next));
-      } catch {}
-      return next;
-    });
-  };
-
-  // Salva elementi ogni volta che cambiano
+  // Salva elementi in localStorage
   useEffect(() => {
     saveShoppingItems(items);
   }, [items]);
 
-  // Salva configurazione layout ogni volta che cambia
+  // Salva configurazione layout negozio
   useEffect(() => {
     saveStoreLayout(layout);
   }, [layout]);
@@ -91,7 +71,7 @@ export default function App() {
     setItems((prev) => [newItem, ...prev]);
   };
 
-  // Aggiunta massiva
+  // Aggiunta massiva da testo incollato
   const handleImportBulkItems = (
     newItemsData: Omit<ShoppingItem, 'id' | 'completed' | 'createdAt'>[]
   ) => {
@@ -131,7 +111,7 @@ export default function App() {
     );
   };
 
-  // Salva modifiche ad un articolo esistente
+  // Salva articolo modificato
   const handleSaveEditedItem = (updated: ShoppingItem) => {
     setItems((prev) =>
       prev.map((item) => (item.id === updated.id ? updated : item))
@@ -144,33 +124,31 @@ export default function App() {
     setItems((prev) => prev.filter((item) => !item.completed));
   };
 
-  // Svuota tutto
+  // Svuota lista
   const handleClearAll = () => {
-    if (window.confirm('Sei sicuro di voler cancellare tutta la lista della spesa?')) {
+    if (window.confirm('Cancellare tutti i prodotti della lista?')) {
       setItems([]);
     }
   };
 
-  // Salva nuovo layout personalizzato del quartiere
+  // Salva nuovo layout personalizzato
   const handleSaveLayout = (newLayout: StoreLayout) => {
     setLayout(newLayout);
   };
 
-  // Seleziona reparto dalla mappa per scrollare o mettere in evidenza
+  // Scorri dolcemente al reparto selezionato
   const handleSelectDepartment = (deptId: string) => {
-    // Scroll dolce verso la corsia selezionata
-    const targetDept = layout.departments.find((d) => d.id === deptId);
-    if (targetDept) {
-      const el = document.getElementById(`dept-${deptId}`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+    const el = document.getElementById(`dept-${deptId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   };
 
+  const pendingCount = items.filter((i) => !i.completed).length;
+
   return (
-    <div className="min-h-[100dvh] bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-red-100 selection:text-red-900 pb-28 sm:pb-0">
-      {/* Header con Navigazione & Status Negozio */}
+    <div className="min-h-[100dvh] bg-slate-100 text-slate-900 flex flex-col font-sans selection:bg-red-100 selection:text-red-900 pb-20 sm:pb-0">
+      {/* Header con Navigazione & Sicurezza Dynamic Island / Notch */}
       <Header
         layout={layout}
         items={items}
@@ -180,8 +158,8 @@ export default function App() {
         onOpenBulkImport={() => setIsBulkImportOpen(true)}
       />
 
-      {/* Contenitore Principale */}
-      <main className="max-w-5xl w-full mx-auto px-3.5 sm:px-6 py-4 sm:py-6 flex-1 space-y-5 sm:space-y-6">
+      {/* Main Content Area con padding laterale safe per bordi curvi e landscape */}
+      <main className="max-w-4xl w-full mx-auto px-3 sm:px-6 py-3.5 sm:py-5 flex-1 space-y-3.5 sm:space-y-4 px-safe">
         {/* Modalità Spesa Attiva (Visuale dedicata tra gli scaffali) */}
         {isShoppingMode ? (
           <InStoreShoppingMode
@@ -192,92 +170,14 @@ export default function App() {
           />
         ) : (
           /* Visuale Standard di Creazione & Gestione Lista Ordinata */
-          <div className="space-y-5 sm:space-y-6">
-            {/* Box Introduttivo Quartiere & Ottimizzazione (riducibile per dare massimo spazio alla lista) */}
-            {showIntroBanner ? (
-              <div className="bg-gradient-to-r from-[#0b1f38] to-[#153459] text-white p-4 sm:p-5 rounded-3xl shadow-sm border border-slate-800 transition-all">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/30">
-                        Percorso Ottimizzato
-                      </span>
-                      <span className="text-xs text-slate-300">
-                        Zero giri a vuoto
-                      </span>
-                    </div>
-                    <h2 className="text-base sm:text-lg font-extrabold text-white">
-                      Spesa ordinata per l'Esselunga di {layout.neighborhood}
-                    </h2>
-                    <p className="text-xs text-slate-300 max-w-xl">
-                      Inserisci i prodotti e la quantità: l'app li ordina automaticamente secondo la sequenza degli scaffali per farti risparmiare tempo e chilometri a piedi.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleToggleIntroBanner}
-                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition shrink-0"
-                    title="Riduci introduzione per dare più spazio alla lista"
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="mt-3 pt-3 border-t border-slate-700/60 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomizeOpen(true)}
-                    className="px-3 py-1.5 min-h-[36px] text-xs font-semibold bg-white/10 hover:bg-white/20 active:bg-white/30 text-white rounded-xl border border-white/20 transition flex items-center gap-1.5 touch-manipulation"
-                  >
-                    <MapPin className="w-3.5 h-3.5 text-red-400" />
-                    <span>Personalizza Corsie</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleToggleIntroBanner}
-                    className="text-[11px] text-slate-400 hover:text-slate-200 underline underline-offset-2"
-                  >
-                    Nascondi introduzione
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between px-3.5 py-2 bg-slate-200/80 hover:bg-slate-200 rounded-2xl text-xs text-slate-700 border border-slate-300/60 transition">
-                <div className="flex items-center gap-2 truncate">
-                  <MapPin className="w-3.5 h-3.5 text-red-600 shrink-0" />
-                  <span className="truncate">
-                    Esselunga <strong>{layout.neighborhood}</strong> ({layout.departments.length} corsie)
-                  </span>
-                </div>
-                <div className="flex items-center gap-2.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomizeOpen(true)}
-                    className="text-[11px] font-semibold text-slate-700 hover:text-slate-900 underline"
-                  >
-                    Modifica corsie
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleToggleIntroBanner}
-                    className="p-1 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-300/50 transition"
-                    title="Espandi dettagli percorso"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Modulo Inserimento Prodotto & Quantità */}
+          <div className="space-y-3.5 sm:space-y-4">
+            {/* Modulo Inserimento Prodotto & Quantità (snello, intuitivo, reattivo) */}
             <AddItemForm
               departments={layout.departments}
               onAddItem={handleAddItem}
             />
 
-            {/* Mappa / Tappe Sequenziali tra gli Scaffali */}
+            {/* Mappa / Tappe Sequenziali tra le corsie del negozio */}
             {items.length > 0 && (
               <StorePathMap
                 departments={layout.departments}
@@ -301,16 +201,16 @@ export default function App() {
         )}
       </main>
 
-      {/* Floating CTA bar on mobile when items are present and in list mode (si ritrae durante lo scroll verso il basso) */}
+      {/* Floating CTA bar on mobile when items are present and in list mode (ergonomica per pollice, con safe-area per home bar) */}
       {!isShoppingMode && items.length > 0 && (
         <div
-          className={`sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-3 pb-safe shadow-2xl flex items-center justify-between gap-3 transition-transform duration-300 ${
+          className={`sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-2.5 pb-safe-nav px-safe shadow-2xl flex items-center justify-between gap-3 transition-transform duration-300 ${
             isScrollingDown ? 'translate-y-full pointer-events-none' : 'translate-y-0'
           }`}
         >
           <div className="min-w-0 flex-1 pl-1">
             <span className="text-[11px] font-bold text-slate-400 block uppercase tracking-wider">
-              {items.filter((i) => !i.completed).length} da acquistare
+              {pendingCount} da prendere
             </span>
             <span className="text-xs font-bold text-white truncate block">
               {layout.storeName}
@@ -323,23 +223,23 @@ export default function App() {
               triggerHaptic('medium');
               setIsShoppingMode(true);
             }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 min-h-[44px] bg-red-600 active:bg-red-700 text-white text-xs font-extrabold rounded-xl shadow-md transition touch-manipulation shrink-0"
+            className="inline-flex items-center gap-1.5 px-4 h-11 bg-red-600 active:bg-red-700 text-white text-xs font-black rounded-xl shadow-md transition touch-manipulation shrink-0 active:scale-95"
           >
-            <ShoppingCart className="w-4 h-4" />
-            <span>Avvia Spesa in Corsia</span>
+            <Play className="w-3.5 h-3.5 fill-current" />
+            <span>Spesa in Corsia</span>
           </button>
         </div>
       )}
 
-      {/* Footer con suggerimenti utili */}
-      <footer className="bg-white border-t border-slate-200 mt-auto py-5 text-center text-xs text-slate-500">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-slate-600 font-medium">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Salvataggio offline istantaneo: la lista non si perde dentro il supermercato</span>
+      {/* Footer sobrio ed essenziale */}
+      <footer className="bg-white border-t border-slate-200 mt-auto py-3.5 text-center text-xs text-slate-500 px-safe">
+        <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>Salvataggio offline istantaneo: la lista resta attiva dentro il supermercato</span>
           </div>
-          <p className="text-slate-400">
-            Disposizione configurata per: <strong className="text-slate-700">{layout.storeName} ({layout.neighborhood})</strong>
+          <p className="text-slate-400 text-[11px]">
+            {layout.storeName} · {layout.neighborhood}
           </p>
         </div>
       </footer>

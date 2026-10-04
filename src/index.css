@@ -1,10 +1,18 @@
 @import "tailwindcss";
 
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+}
+
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     scroll-behavior: smooth;
+    background-color: #0b1f38;
   }
 
   body {
@@ -12,6 +20,7 @@
     min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    background-color: #f1f5f9;
   }
 
   /* Prevent iOS Safari auto-zoom when tapping inputs and selects */
@@ -42,14 +51,37 @@
   scrollbar-width: none;
 }
 
-/* Safe area padding and margin helpers for notch & iOS home indicator */
-.pb-safe {
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-}
+/* Safe area padding and margin helpers for Dynamic Island, notch & iOS home indicator */
 .pt-safe {
-  padding-top: max(0.5rem, env(safe-area-inset-top));
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
 }
+
+.pt-safe-topbar {
+  padding-top: max(0.875rem, calc(env(safe-area-inset-top, 0px) + 0.35rem));
+}
+
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
+.pb-safe-nav {
+  padding-bottom: max(1.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.75rem));
+}
+
+.pl-safe {
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+}
+
+.pr-safe {
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+}
+
+.px-safe {
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+}
+
 .mb-safe {
-  margin-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  margin-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
 }
 

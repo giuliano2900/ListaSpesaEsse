@@ -4,7 +4,7 @@ import { detectDepartment, parseItemText } from '../utils/categorizer';
 import { COMMON_FREQUENT_ITEMS } from '../data/defaultDepartments';
 import { DepartmentIcon } from './DepartmentIcon';
 import { triggerHaptic } from '../utils/haptics';
-import { Plus, Sparkles, Minus, Tag, ChevronDown, Check } from 'lucide-react';
+import { Plus, Minus, Check, ChevronDown, FileText, X } from 'lucide-react';
 
 interface AddItemFormProps {
   departments: Department[];
@@ -12,23 +12,14 @@ interface AddItemFormProps {
 }
 
 const UNIT_OPTIONS: { value: UnitType; label: string }[] = [
-  { value: 'pz', label: 'Pezzi (pz)' },
-  { value: 'kg', label: 'Chilogrammi (kg)' },
-  { value: 'g', label: 'Grammi (g)' },
-  { value: 'etti', label: 'Etti (100g)' },
-  { value: 'l', label: 'Litri (l)' },
-  { value: 'conf', label: 'Confezioni (conf)' },
-  { value: 'bottiglie', label: 'Bottiglie' },
-  { value: 'buste', label: 'Buste / Pacchi' },
-];
-
-const QUICK_QUANTITY_PRESETS: { label: string; qty: number; unit: UnitType }[] = [
-  { label: '1 pz', qty: 1, unit: 'pz' },
-  { label: '2 pz', qty: 2, unit: 'pz' },
-  { label: '500g', qty: 500, unit: 'g' },
-  { label: '1 kg', qty: 1, unit: 'kg' },
-  { label: '1 l', qty: 1, unit: 'l' },
-  { label: '2 conf', qty: 2, unit: 'conf' },
+  { value: 'pz', label: 'pz' },
+  { value: 'kg', label: 'kg' },
+  { value: 'g', label: 'g' },
+  { value: 'etti', label: 'etti' },
+  { value: 'l', label: 'l' },
+  { value: 'conf', label: 'conf' },
+  { value: 'bottiglie', label: 'bottiglie' },
+  { value: 'buste', label: 'buste' },
 ];
 
 export const AddItemForm: React.FC<AddItemFormProps> = ({ departments, onAddItem }) => {
@@ -56,7 +47,7 @@ export const AddItemForm: React.FC<AddItemFormProps> = ({ departments, onAddItem
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value;
     setName(rawVal);
-    // If user pastes or types something like "2 kg mele", auto-parse quantity and unit
+    // Intelligent auto-parsing if user types/pastes "2 kg mele" or "6 bottiglie acqua"
     if (rawVal.includes(' ') && (rawVal.match(/\d/) || rawVal.match(/kg|litr|conf|etti|bottigl/i))) {
       const parsed = parseItemText(rawVal);
       if (parsed.quantity !== 1 || parsed.unit !== 'pz') {
@@ -67,24 +58,15 @@ export const AddItemForm: React.FC<AddItemFormProps> = ({ departments, onAddItem
     }
   };
 
+  const adjustQuantity = (delta: number) => {
+    triggerHaptic('light');
+    setQuantity((prev) => Math.max(0.1, Number((prev + delta).toFixed(2))));
+  };
+
   const handleDepartmentChange = (deptId: string) => {
     setSelectedDeptId(deptId);
     setIsManuallySelected(true);
     triggerHaptic('light');
-  };
-
-  const adjustQuantity = (delta: number) => {
-    triggerHaptic('light');
-    setQuantity((prev) => {
-      const next = Math.max(0.1, Number((prev + delta).toFixed(2)));
-      return next;
-    });
-  };
-
-  const applyQuickPreset = (presetQty: number, presetUnit: UnitType) => {
-    triggerHaptic('light');
-    setQuantity(presetQty);
-    setUnit(presetUnit);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -100,11 +82,9 @@ export const AddItemForm: React.FC<AddItemFormProps> = ({ departments, onAddItem
       notes: notes.trim() || undefined,
     });
 
-    // Visual feedback
     setJustAddedFeedback(true);
-    setTimeout(() => setJustAddedFeedback(false), 1200);
+    setTimeout(() => setJustAddedFeedback(false), 900);
 
-    // Reset for next item
     setName('');
     setQuantity(1);
     setUnit('pz');
@@ -129,92 +109,97 @@ export const AddItemForm: React.FC<AddItemFormProps> = ({ departments, onAddItem
   const currentDept = departments.find((d) => d.id === selectedDeptId) || departments[0];
 
   return (
-    <div className="bg-white rounded-3xl p-3.5 sm:p-5 border border-slate-200 shadow-sm transition-all">
-      <form onSubmit={handleSubmit} className="space-y-3.5">
-        <div className="flex items-center justify-between">
-          <label htmlFor="product-name-input" className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-            <span>Aggiungi Prodotto</span>
-            <span className="text-xs font-normal text-slate-500 hidden sm:inline">
-              (con quantità e corsia automatica)
-            </span>
-          </label>
+    <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-4 border border-slate-200 shadow-xs space-y-3 transition-all">
+      <form onSubmit={handleSubmit} className="space-y-2.5">
+        {/* Main Input Row: Product text input with submit button */}
+        <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-2xl p-1 focus-within:bg-white focus-within:ring-2 focus-within:ring-red-500 focus-within:border-red-500 transition-all">
+          <input
+            id="product-name-input"
+            ref={inputRef}
+            type="text"
+            inputMode="text"
+            enterKeyHint="done"
+            autoCapitalize="sentences"
+            autoCorrect="on"
+            value={name}
+            onChange={handleNameChange}
+            placeholder="Aggiungi prodotto (es. Pane, 2 kg mele, Latte...)"
+            className="flex-1 px-3 py-2 text-base sm:text-sm bg-transparent focus:outline-none text-slate-800 placeholder-slate-400 font-medium min-w-0"
+            required
+          />
+
+          {name.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setName('');
+                if (inputRef.current) inputRef.current.focus();
+              }}
+              className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg touch-manipulation"
+              title="Cancella testo"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
 
           <button
-            type="button"
-            onClick={() => {
-              setShowNotes(!showNotes);
-              triggerHaptic('light');
-            }}
-            className="text-xs text-slate-600 hover:text-slate-900 active:text-red-600 flex items-center gap-1 transition py-1 px-2 rounded-lg hover:bg-slate-100 touch-manipulation"
+            type="submit"
+            disabled={!name.trim()}
+            className={`h-10 px-3.5 sm:px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition touch-manipulation shrink-0 active:scale-95 ${
+              justAddedFeedback
+                ? 'bg-emerald-600 text-white'
+                : 'bg-red-600 hover:bg-red-700 active:bg-red-800 text-white disabled:opacity-40 disabled:pointer-events-none'
+            }`}
           >
-            <Tag className="w-3.5 h-3.5 text-slate-400" />
-            <span className="font-medium">{showNotes ? 'Nascondi note' : '+ Note/Marca'}</span>
+            {justAddedFeedback ? (
+              <>
+                <Check className="w-4 h-4 stroke-[3]" />
+                <span className="hidden xs:inline">Aggiunto!</span>
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 stroke-[2.5]" />
+                <span>Aggiungi</span>
+              </>
+            )}
           </button>
         </div>
 
-        {/* Input Principale: Prodotto e Quantità */}
-        <div className="space-y-2.5">
-          {/* Nome Prodotto - Ottimizzato per tastiera smartphone */}
-          <div className="relative">
-            <input
-              id="product-name-input"
-              ref={inputRef}
-              type="text"
-              inputMode="text"
-              enterKeyHint="done"
-              autoCapitalize="sentences"
-              autoCorrect="on"
-              value={name}
-              onChange={handleNameChange}
-              placeholder="Es. Pomodori datterini, Pasta Barilla, Latte..."
-              className="w-full px-3.5 py-3 min-h-[48px] text-base sm:text-sm bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition text-slate-800 placeholder-slate-400 shadow-inner"
-              required
-            />
-          </div>
+        {/* Dynamic Controls Bar: Quantity Stepper, Unit, Detected Aisle, and Notes */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5 text-xs">
+          {/* Stepper Quantità & Unità (ultra-compatto) */}
+          <div className="flex items-center gap-1.5 bg-slate-100/80 rounded-xl p-1 border border-slate-200/60">
+            <button
+              type="button"
+              onClick={() => adjustQuantity(-1)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white active:bg-slate-200 transition touch-manipulation active:scale-90"
+              title="Meno"
+            >
+              <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
 
-          {/* Quantità con Stepper e Unità */}
-          <div className="grid grid-cols-12 gap-2">
-            {/* Quantità con Stepper Touch-friendly */}
-            <div className="col-span-6 sm:col-span-7 flex items-center bg-slate-50 border border-slate-200 rounded-2xl px-1.5 py-1 min-h-[46px] focus-within:bg-white focus-within:ring-2 focus-within:ring-red-500">
-              <button
-                type="button"
-                onClick={() => adjustQuantity(-1)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-200 active:bg-slate-300 transition shrink-0 touch-manipulation active:scale-95"
-                title="Diminuisci quantità"
-              >
-                <Minus className="w-4 h-4 stroke-[2.5]" />
-              </button>
+            <span className="font-bold text-slate-800 min-w-[20px] text-center tabular-nums">
+              {quantity}
+            </span>
 
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0.1"
-                step="any"
-                value={quantity}
-                onChange={(e) => setQuantity(parseFloat(e.target.value) || 1)}
-                className="w-full text-center text-base sm:text-sm font-black text-slate-800 bg-transparent focus:outline-none"
-                title="Quantità"
-              />
+            <button
+              type="button"
+              onClick={() => adjustQuantity(1)}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-600 hover:text-slate-900 hover:bg-white active:bg-slate-200 transition touch-manipulation active:scale-90"
+              title="Più"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
 
-              <button
-                type="button"
-                onClick={() => adjustQuantity(1)}
-                className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-200 active:bg-slate-300 transition shrink-0 touch-manipulation active:scale-95"
-                title="Aumenta quantità"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-              </button>
-            </div>
-
-            {/* Unità di Misura (con font 16px per evitare zoom iOS) */}
-            <div className="col-span-6 sm:col-span-5 relative">
+            {/* Select unità compatto */}
+            <div className="relative border-l border-slate-200 pl-1">
               <select
                 value={unit}
                 onChange={(e) => {
                   setUnit(e.target.value as UnitType);
                   triggerHaptic('light');
                 }}
-                className="w-full appearance-none px-3 pr-8 py-2.5 min-h-[46px] text-base sm:text-sm font-semibold bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500 text-slate-700 cursor-pointer"
+                className="appearance-none bg-transparent pr-4 pl-1 py-1 font-bold text-slate-700 cursor-pointer focus:outline-none text-xs"
               >
                 {UNIT_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
@@ -222,65 +207,18 @@ export const AddItemForm: React.FC<AddItemFormProps> = ({ departments, onAddItem
                   </option>
                 ))}
               </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                <ChevronDown className="w-4 h-4" />
-              </div>
+              <ChevronDown className="w-3 h-3 text-slate-400 absolute right-0.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
 
-          {/* Chip Presets Quantità Rapida per Smartphone */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none scroll-touch">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-0.5 hidden xs:inline">
-              Rapidi:
-            </span>
-            {QUICK_QUANTITY_PRESETS.map((preset) => {
-              const isSelected = quantity === preset.qty && unit === preset.unit;
-              return (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => applyQuickPreset(preset.qty, preset.unit)}
-                  className={`px-2.5 py-1 min-h-[32px] text-xs font-semibold rounded-xl border transition shrink-0 touch-manipulation active:scale-95 ${
-                    isSelected
-                      ? 'bg-red-50 text-red-700 border-red-300 font-bold'
-                      : 'bg-slate-100/90 text-slate-600 border-slate-200 hover:bg-slate-200 active:bg-slate-300'
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Note facoltative (marca, sconto, bio) */}
-        {showNotes && (
-          <div className="pt-0.5">
-            <input
-              type="text"
-              inputMode="text"
-              autoCapitalize="sentences"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Note o dettagli (es. Esselunga Bio, sconto Fidaty, 100% italiano...)"
-              className="w-full px-3.5 py-2.5 min-h-[44px] text-base sm:text-xs bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-red-500 text-slate-700 placeholder-slate-400"
-            />
-          </div>
-        )}
-
-        {/* Scaffale / Reparto Riconosciuto & Bottone Inserisci */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-100">
-          <div className="flex items-center gap-2 text-xs flex-wrap">
-            <span className="text-slate-500 flex items-center gap-1 font-medium shrink-0">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              Corsia:
-            </span>
-
-            <div className="relative flex-1 sm:flex-none max-w-full">
+          {/* Scaffale / Reparto Riconosciuto */}
+          <div className="flex items-center gap-1.5 flex-1 min-w-[140px] justify-end">
+            <div className="relative max-w-full">
               <select
                 value={selectedDeptId}
                 onChange={(e) => handleDepartmentChange(e.target.value)}
-                className="w-full sm:w-auto appearance-none pl-7 pr-8 py-2 min-h-[42px] bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-base sm:text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-red-500 cursor-pointer transition truncate"
+                className="appearance-none pl-6 pr-6 py-1.5 text-xs font-bold bg-slate-100/80 hover:bg-slate-200 text-slate-700 rounded-xl border border-slate-200/80 cursor-pointer focus:outline-none focus:ring-1 focus:ring-red-500 truncate max-w-[200px]"
+                title="Seleziona corsia scaffale"
               >
                 {departments.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -288,66 +226,62 @@ export const AddItemForm: React.FC<AddItemFormProps> = ({ departments, onAddItem
                   </option>
                 ))}
               </select>
-              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-600">
-                <DepartmentIcon name={currentDept?.iconName || 'ShoppingBag'} className="w-3.5 h-3.5" />
+              <div className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                <DepartmentIcon name={currentDept?.iconName || 'ShoppingBag'} className="w-3 h-3" />
               </div>
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-                <ChevronDown className="w-3.5 h-3.5" />
-              </div>
+              <ChevronDown className="w-3 h-3 text-slate-400 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
 
-            {isManuallySelected && (
-              <span className="text-[10px] text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 font-medium">
-                scelta manuale
-              </span>
-            )}
+            {/* Toggle Note */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowNotes(!showNotes);
+                triggerHaptic('light');
+              }}
+              className={`p-1.5 rounded-lg border transition touch-manipulation ${
+                showNotes || notes
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'text-slate-400 hover:text-slate-700 border-transparent hover:border-slate-200'
+              }`}
+              title="Aggiungi note (marca, bio, offerta)"
+            >
+              <FileText className="w-3.5 h-3.5" />
+            </button>
           </div>
-
-          <button
-            type="submit"
-            disabled={!name.trim()}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 min-h-[48px] bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-black rounded-2xl transition shadow-md touch-manipulation active:scale-[0.98]"
-          >
-            {justAddedFeedback ? (
-              <>
-                <Check className="w-4 h-4 stroke-[3]" />
-                <span>Aggiunto alla Lista!</span>
-              </>
-            ) : (
-              <>
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>Inserisci nella lista</span>
-              </>
-            )}
-          </button>
         </div>
+
+        {/* Input note opzionale espanso solo se richiesto */}
+        {showNotes && (
+          <div className="pt-1">
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Note/Dettagli (es. Esselunga Bio, sconto Fidaty...)"
+              className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-red-500 text-slate-700 placeholder-slate-400"
+            />
+          </div>
+        )}
       </form>
 
-      {/* Suggerimenti veloci / Articoli frequenti Esselunga */}
-      <div className="mt-3 pt-2.5 border-t border-slate-100">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Aggiunta rapida con 1 tocco:
-          </span>
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1.5 pt-0.5 scrollbar-none scroll-touch touch-pan-x">
-          {COMMON_FREQUENT_ITEMS.slice(0, 8).map((freq) => (
-            <button
-              key={freq.name}
-              type="button"
-              onClick={() => handleQuickAdd(freq)}
-              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 min-h-[40px] text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200 active:bg-red-100 border border-slate-200 rounded-xl transition touch-manipulation active:scale-95"
-            >
-              <Plus className="w-3.5 h-3.5 text-slate-400" />
-              <span>{freq.name}</span>
-              <span className="text-[10px] font-bold text-slate-500 bg-white px-1.5 py-0.5 rounded-md border border-slate-200">
-                {freq.quantity} {freq.unit}
-              </span>
-            </button>
-          ))}
-        </div>
+      {/* Suggerimenti veloci con 1 tocco (Scorrevole, pulito, zero ingombro) */}
+      <div className="pt-1 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none scroll-touch">
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+          Frequenti:
+        </span>
+        {COMMON_FREQUENT_ITEMS.slice(0, 7).map((freq) => (
+          <button
+            key={freq.name}
+            type="button"
+            onClick={() => handleQuickAdd(freq)}
+            className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-600 bg-slate-100/90 hover:bg-red-50 hover:text-red-700 active:bg-red-100 border border-slate-200/60 rounded-lg transition touch-manipulation active:scale-95"
+          >
+            <Plus className="w-3 h-3 text-slate-400" />
+            <span>{freq.name}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
 };
-
