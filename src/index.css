@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    overscroll-behavior-y: contain;
+    min-height: 100dvh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Prevent iOS Safari auto-zoom when tapping inputs and selects */
+  @media (max-width: 640px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Prevent text selection and iOS touch-callout on buttons and icons */
+  button {
+    -webkit-touch-callout: none;
+    user-select: none;
+  }
+}
+
+/* Custom smooth momentum scrolling for mobile touch carousels */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom scrollbar styling for compact mobile lists */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe area padding and margin helpers for notch & iOS home indicator */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+.mb-safe {
+  margin-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+

@@ -1,0 +1,6 @@
+{
+  "name": "Lista Spesa Esselunga",
+  "description": "Lista della spesa con prodotto e quantità, ottimizzata per percorso tra gli scaffali dell'Esselunga di quartiere.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
